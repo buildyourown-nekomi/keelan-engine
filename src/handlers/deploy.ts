@@ -16,12 +16,34 @@ import { PATHS } from '../constants.js';
 
 import net from 'net';
 
-// Type definitions for command arguments
+/**
+ * Deployment configuration options for the deploy handler.
+ * 
+ * @property {'dev'|'staging'|'production'} env - The target environment for deployment
+ * @property {string} name - The name of the crate/ship to deploy
+ */
 interface DeployOptions {
   env: 'dev' | 'staging' | 'production';
   name: string;
 }
 
+/**
+ * Handles the deployment of a Keelan ship (container).
+ * 
+ * This function orchestrates the deployment process including:
+ * - Validating the deployment configuration
+ * - Resolving and setting up container layers
+ * - Creating and mounting the container filesystem
+ * - Communicating with the daemon to start the container
+ * 
+ * @param {DeployOptions} options - Deployment configuration options
+ * @throws {Error} If deployment configuration is invalid or deployment fails
+ * @example
+ * await deployHandler({
+ *   env: 'production',
+ *   name: 'my-app'
+ * });
+ */
 export const deployHandler = async (options: DeployOptions) => {
   
   const file_data = await db.select().from(keelanFiles).where(
@@ -68,7 +90,13 @@ export const deployHandler = async (options: DeployOptions) => {
   const logDir = path.join(PATHS.logs, options.name);
   await fs.ensureDir(logDir);
 
-  // Connect to daemon via TCP
+  /**
+   * Establishes a connection to the Keelan daemon to manage the container lifecycle.
+   * 
+   * @returns {Promise<void>} Resolves when the deployment is acknowledged by the daemon
+   * @throws {Error} If connection to the daemon fails
+   * @private
+   */
   const connectToDaemon = () => {
     return new Promise<void>((resolve, reject) => {
       const message = {

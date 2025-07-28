@@ -9,19 +9,42 @@ import { resolveLayer } from '../core/layer.js';
 import { createAndMountOverlay } from '../utils/layer.js';
 import { PATHS } from '../constants.js';
 
-// Type definitions
+/**
+ * Configuration options for ship operations.
+ * 
+ * @property {string} name - The name of the ship to operate on
+ * @property {boolean} [force] - Whether to force the operation (optional)
+ */
 interface ShipOptions {
   name: string;
   force?: boolean;
 }
 
+/**
+ * Configuration options for starting a ship, extending basic ship options.
+ * 
+ * @property {string} name - The name of the ship to start
+ * @property {boolean} [force] - Whether to force the start operation (optional)
+ * @property {'dev'|'staging'|'production'} [env] - The environment to start the ship in (optional, defaults to 'dev')
+ */
 interface StartShipOptions extends ShipOptions {
   env?: 'dev' | 'staging' | 'production';
 }
 
-
-
-// Helper function to send message to daemon
+/**
+ * Sends a message to the Keelan daemon via TCP socket connection.
+ * 
+ * @param {any} message - The message object to send to the daemon
+ * @returns {Promise<any>} The response from the daemon
+ * @throws {Error} If connection to daemon fails
+ * @private
+ * @example
+ * const response = await sendMessageToDaemon({
+ *   type: 'start',
+ *   shipName: 'my-app',
+ *   env: 'production'
+ * });
+ */
 async function sendMessageToDaemon(message: any): Promise<any> {
   return new Promise((resolve, reject) => {
     const client = net.createConnection(9876, 'localhost', () => {
@@ -40,7 +63,23 @@ async function sendMessageToDaemon(message: any): Promise<any> {
   });
 }
 
-// Start a ship
+/**
+ * Handles starting a Keelan ship (container).
+ * 
+ * This function orchestrates the ship startup process including:
+ * - Validating the ship configuration exists
+ * - Checking if the ship is already running
+ * - Setting up the container environment
+ * - Communicating with the daemon to start the ship process
+ * 
+ * @param {StartShipOptions} options - Ship startup configuration options
+ * @throws {Error} If ship configuration is invalid or startup fails
+ * @example
+ * await startShipHandler({
+ *   name: 'my-app',
+ *   env: 'production'
+ * });
+ */
 export const startShipHandler = async (options: StartShipOptions) => {
   const { name, env = 'dev' } = options;
   
@@ -132,7 +171,22 @@ export const startShipHandler = async (options: StartShipOptions) => {
   }
 };
 
-// Stop a ship
+/**
+ * Handles stopping a running Keelan ship (container).
+ * 
+ * This function orchestrates the ship shutdown process including:
+ * - Validating the ship exists and is running
+ * - Communicating with the daemon to stop the ship process
+ * - Gracefully or forcefully terminating the container
+ * 
+ * @param {ShipOptions} options - Ship stop configuration options
+ * @throws {Error} If ship doesn't exist or stop operation fails
+ * @example
+ * await stopShipHandler({
+ *   name: 'my-app',
+ *   force: true
+ * });
+ */
 export const stopShipHandler = async (options: ShipOptions) => {
   const { name, force = false } = options;
   
@@ -168,7 +222,20 @@ export const stopShipHandler = async (options: ShipOptions) => {
   }
 };
 
-// Restart a ship
+/**
+ * Handles restarting a Keelan ship (container).
+ * 
+ * This function performs a complete restart by stopping the ship first,
+ * waiting briefly, then starting it again with the same configuration.
+ * 
+ * @param {StartShipOptions} options - Ship restart configuration options
+ * @throws {Error} If restart operation fails during stop or start phase
+ * @example
+ * await restartShipHandler({
+ *   name: 'my-app',
+ *   env: 'production'
+ * });
+ */
 export const restartShipHandler = async (options: StartShipOptions) => {
   const { name } = options;
   
@@ -193,7 +260,20 @@ export const restartShipHandler = async (options: StartShipOptions) => {
   }
 };
 
-// List ships (moved from list.ts for consistency)
+/**
+ * Handles listing all Keelan ships with their current status and details.
+ * 
+ * This function retrieves and displays information about all ships including:
+ * - Ship name and associated image
+ * - Current status (running, stopped, failed)
+ * - Process ID (if running)
+ * - Start/stop timestamps
+ * - Exit codes and log locations
+ * 
+ * @throws {Error} If database query fails
+ * @example
+ * await listShipsHandler();
+ */
 export const listShipsHandler = async () => {
   console.log(chalk.blue('🚢 Here are all our ships and they\'re serving fleet energy:'));
   const ships = await db.select({

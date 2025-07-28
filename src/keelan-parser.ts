@@ -153,6 +153,15 @@ export class KeelanParser {
     return raw.map((step, index) => this.validateBuildStep(step, index));
   }
 
+  /**
+   * Validates and transforms a single build step configuration.
+   * 
+   * @param {any} raw - The raw build step object to validate
+   * @param {number} index - The index of the build step in the array (for error messages)
+   * @returns {BuildStep} The validated and transformed build step
+   * @throws {KeelanParserError} If the build step is invalid
+   * @private
+   */
   private static validateBuildStep(raw: any, index: number): BuildStep {
     if (!raw || typeof raw !== 'object') {
       throw new KeelanParserError(`build_steps[${index}] must be an object`);
@@ -209,6 +218,14 @@ export class KeelanParser {
     return step;
   }
 
+  /**
+   * Validates and transforms the crate configuration section.
+   * 
+   * @param {any} raw - The raw crate config object to validate
+   * @returns {CrateConfig} The validated and transformed crate configuration
+   * @throws {KeelanParserError} If the crate configuration is invalid
+   * @private
+   */
   private static validateCrateConfig(raw: any): CrateConfig {
     if (!raw || typeof raw !== 'object') {
       throw new KeelanParserError('crate_config must be an object');
@@ -251,6 +268,15 @@ export class KeelanParser {
     return config;
   }
 
+  /**
+   * Validates that a value is an array of strings.
+   * 
+   * @param {any} raw - The value to validate as a string array
+   * @param {string} fieldName - The name of the field being validated (for error messages)
+   * @returns {string[]} The validated string array
+   * @throws {KeelanParserError} If the value is not a valid string array
+   * @private
+   */
   private static validateStringArray(raw: any, fieldName: string): string[] {
     if (!Array.isArray(raw)) {
       throw new KeelanParserError(`${fieldName} must be an array`);

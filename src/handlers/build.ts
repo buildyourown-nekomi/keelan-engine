@@ -14,7 +14,14 @@ import path from 'path';
 import { createAndMountOverlay } from '../utils/layer.js';
 import { PATHS } from '../constants.js';
 
-// Type definitions for command arguments
+/**
+ * Build configuration options for the build handler.
+ * 
+ * @property {boolean} watch - Whether to watch for file changes and rebuild
+ * @property {boolean} production - Whether to build in production mode
+ * @property {string} workingDirectory - The working directory for the build
+ * @property {string} name - The name of the crate to build
+ */
 interface BuildOptions {
   watch: boolean;
   production: boolean;
@@ -22,6 +29,26 @@ interface BuildOptions {
   name: string;
 }
 
+/**
+ * Handles the build process for a Keelan crate.
+ * 
+ * This function orchestrates the entire build process including:
+ * - Validating the build environment and configuration
+ * - Setting up the build directory structure
+ * - Mounting the overlay filesystem
+ * - Executing build commands in the container environment
+ * - Saving the built crate to the database
+ * 
+ * @param {BuildOptions} options - Build configuration options
+ * @throws {Error} If any step in the build process fails
+ * @example
+ * await buildHandler({
+ *   watch: false,
+ *   production: true,
+ *   workingDirectory: './myapp',
+ *   name: 'myapp'
+ * });
+ */
 export const buildHandler = async (options: BuildOptions) => {
   if (options.workingDirectory) {
     process.chdir(options.workingDirectory);
@@ -161,9 +188,16 @@ export const buildHandler = async (options: BuildOptions) => {
   console.log(chalk.green('✅ Crate unmounted successfully and everything\'s back to normal bestie.'));
 
   console.log(chalk.green('✅ Crate built successfully and it\'s absolutely serving functionality bestie.'));
-
 };
 
+/**
+ * Executes a shell command within the context of a crate's filesystem.
+ * 
+ * @param {string} command - The command to execute
+ * @param {string} crate - The name of the crate to run the command in
+ * @returns {Promise<{stdout: string, stderr: string, code: number}>} Command execution result
+ * @private
+ */
 async function runCommandInCrate(command: string, crate: string) {
   // Run the command in the crate
   const crate_path = `${PATHS.crates}/${crate}_merge`;
@@ -183,6 +217,13 @@ async function runCommandInCrate(command: string, crate: string) {
   }
 }
 
+/**
+ * Executes a command and streams output in real-time.
+ * 
+ * @param {string} commandString - The command to execute
+ * @returns {Promise<number>} The exit code of the command
+ * @private
+ */
 async function executeCommandRealtime(commandString: string) {
 
   const parts = commandString.split(' ');
@@ -230,6 +271,13 @@ async function executeCommandRealtime(commandString: string) {
   });
 }
 
+/**
+ * Pauses execution for a specified number of milliseconds.
+ * 
+ * @param {number} ms - Milliseconds to sleep
+ * @returns {Promise<void>} Resolves after the specified delay
+ * @private
+ */
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }

@@ -6,8 +6,23 @@ const CURSOR_UP = '\x1b[1A'; // Moves cursor up 1 line
 const MAX_LINES = 5; // The number of lines to "keep" in the dynamic window
 
 
+/**
+ * A logging utility that provides a tail-like console output with multiple log levels.
+ * Maintains a fixed-size buffer of log messages and supports dynamic updates to the console.
+ * 
+ * @example
+ * const log = new TailLog();
+ * log.info('Application started');
+ * log.warn('This is a warning');
+ * log.error('Something went wrong');
+ * log.success('Operation completed');
+ */
 export class TailLog {
 
+    /**
+     * Internal buffer storing log messages for the tail display
+     * @private
+     */
     private logBuffer: string[];
 
     constructor() {
@@ -15,22 +30,55 @@ export class TailLog {
         console.log("\n"); // This blank line ensures the dynamic content starts below the static text
     }
 
+    /**
+     * Logs an error message with red color and error emoji
+     * @param {string} message - The error message to log
+     * @example
+     * log.error('Failed to load configuration');
+     */
     error(message: string) {
         console.log(chalk.red(`❌ [ERROR] ${message} (and that's not very cash money)`));
     }
 
+    /**
+     * Logs a warning message with yellow color and warning emoji
+     * @param {string} message - The warning message to log
+     * @example
+     * log.warn('Using default configuration');
+     */
     warn(message: string) {
         console.log(chalk.yellow(`⚠️  [WARN] ${message} (just a heads up bestie)`));
     }
 
+    /**
+     * Logs an informational message with blue color and info emoji
+     * @param {string} message - The info message to log
+     * @example
+     * log.info('Processing started');
+     */
     info(message: string) {
         console.log(chalk.blue(`ℹ️  [INFO] ${message} (no cap)`));
     }
 
+    /**
+     * Logs a success message with green color and checkmark emoji
+     * @param {string} message - The success message to log
+     * @example
+     * log.success('Operation completed successfully');
+     */
     success(message: string) {
         console.log(chalk.green(`✅ [SUCCESS] ${message} (and we love that for us)`));
     }
 
+    /**
+     * Logs a raw message to the console with tail-like behavior.
+     * Maintains a fixed number of lines in the console output.
+     * 
+     * @param {string} message - The message to log (can contain multiple lines)
+     * @private
+     * @example
+     * log.log('Processing item 1/100');
+     */
     log(message: string) {
 
         // Check if it a multiple lines

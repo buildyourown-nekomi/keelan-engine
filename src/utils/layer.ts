@@ -2,6 +2,28 @@ import chalk from "chalk";
 import { createDirectory, mountCrate } from "../core/core.js";
 import { PATHS } from "../constants.js";
 
+/**
+ * Creates and mounts an OverlayFS filesystem for container layering.
+ * 
+ * This function sets up a layered filesystem using OverlayFS, which allows
+ * multiple directories to be combined into a single unified view. This is
+ * essential for container functionality where base images are combined with
+ * application-specific changes.
+ * 
+ * @param {string} upperdir_path - Path to the upper directory (writable layer)
+ * @param {string[]} lowerlayers - Array of lower layer directory names (read-only base layers)
+ * @param {string} workdir_path - Path to the work directory (used by OverlayFS for metadata)
+ * @param {string} merge_path - Path where the merged filesystem will be mounted
+ * @returns {Promise<string>} The constructed lowerdir string used for mounting
+ * @throws {Error} If directory creation or mounting fails
+ * @example
+ * const lowerdir = await createAndMountOverlay(
+ *   '/var/lib/keelan/upper/myapp',
+ *   ['debian', 'nodejs'],
+ *   '/var/lib/keelan/work/myapp',
+ *   '/var/lib/keelan/merge/myapp'
+ * );
+ */
 export async function createAndMountOverlay(
     upperdir_path: string, 
     lowerlayers: string[],

@@ -9,6 +9,15 @@ import { PATHS } from '../constants.js';
 
 const execAsync = promisify(exec);
 
+/**
+ * Options for daemon management operations.
+ * 
+ * @property {'start' | 'stop' | 'status' | 'restart'} action - The daemon action to perform
+ * @property {number} [interval] - Monitoring interval in seconds (default: 10)
+ * @property {string} [logFile] - Custom log file path (optional)
+ * @property {string} [pidFile] - Custom PID file path (optional)
+ * @property {boolean} [detach] - Whether to run daemon in detached mode (default: true)
+ */
 interface DaemonOptions {
   action: 'start' | 'stop' | 'status' | 'restart';
   interval?: number;
@@ -17,6 +26,25 @@ interface DaemonOptions {
   detach?: boolean;
 }
 
+/**
+ * Handles Keelan daemon management operations.
+ * 
+ * This function manages the Keelan monitor daemon which is responsible for
+ * monitoring and managing running ships (containers). Supports starting,
+ * stopping, checking status, and restarting the daemon process.
+ * 
+ * @param {DaemonOptions} options - Daemon management options
+ * @throws {Error} If daemon operation fails
+ * @example
+ * // Start daemon with default settings
+ * await daemonHandler({ action: 'start' });
+ * 
+ * // Start daemon with custom interval
+ * await daemonHandler({ action: 'start', interval: 30 });
+ * 
+ * // Check daemon status
+ * await daemonHandler({ action: 'status' });
+ */
 export const daemonHandler = async (options: DaemonOptions) => {
   const logDir = PATHS.logs;
   const pidDir = PATHS.pids;
@@ -54,6 +82,18 @@ export const daemonHandler = async (options: DaemonOptions) => {
   }
 };
 
+/**
+ * Starts the Keelan monitor daemon process.
+ * 
+ * This function spawns a new daemon process that monitors running ships.
+ * The daemon can run in detached mode (background) or foreground mode for debugging.
+ * 
+ * @param {number} interval - Monitoring interval in seconds
+ * @param {string} logFile - Path to the daemon log file
+ * @param {string} pidFile - Path to the daemon PID file
+ * @param {boolean} detach - Whether to run in detached mode (default: true)
+ * @throws {Error} If daemon fails to start or is already running
+ */
 async function startDaemon(interval: number, logFile: string, pidFile: string, detach: boolean = true) {
   try {
     // Check if daemon is already running
@@ -133,6 +173,15 @@ console.log(chalk.gray('Press Ctrl+C to stop'));
   }
 }
 
+/**
+ * Stops the running Keelan monitor daemon.
+ * 
+ * This function reads the PID from the PID file and attempts to gracefully
+ * terminate the daemon process. Handles cleanup of PID file after stopping.
+ * 
+ * @param {string} pidFile - Path to the daemon PID file
+ * @throws {Error} If daemon cannot be stopped or PID file is corrupted
+ */
 async function stopDaemon(pidFile: string) {
   try {
     if (!(await fs.pathExists(pidFile))) {
@@ -200,6 +249,15 @@ async function stopDaemon(pidFile: string) {
   }
 }
 
+/**
+ * Gets the current status of the Keelan monitor daemon.
+ * 
+ * This function checks if the daemon is running and displays detailed
+ * status information including PID, log file location, and recent log entries.
+ * 
+ * @param {string} pidFile - Path to the daemon PID file
+ * @param {string} logFile - Path to the daemon log file
+ */
 async function getDaemonStatus(pidFile: string, logFile: string) {
   try {
     console.log(chalk.blue('📊 Let\'s check if the daemon is still serving bestie:'));
@@ -263,6 +321,15 @@ console.log(chalk.gray(`PID file: ${pidFile}`));
   }
 }
 
+/**
+ * Checks if the daemon is currently running.
+ * 
+ * This function verifies daemon status by checking the PID file existence
+ * and validating that the process is actually running on the system.
+ * 
+ * @param {string} pidFile - Path to the daemon PID file
+ * @returns {Promise<boolean>} True if daemon is running, false otherwise
+ */
 async function isDaemonRunning(pidFile: string): Promise<boolean> {
   try {
     if (!(await fs.pathExists(pidFile))) {

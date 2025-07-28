@@ -3,6 +3,20 @@ import { eq } from "drizzle-orm";
 import { keelanCrate } from "../database/schema.js";
 import chalk from "chalk";
 
+/**
+ * Resolves the complete layer hierarchy for a given container image.
+ * 
+ * This function recursively resolves all layers that make up a container image,
+ * starting from the base image up to the specified image. It handles both
+ * built-in images (like 'debian') and custom images stored in the database.
+ * 
+ * @param {string} name - The name of the image/layer to resolve
+ * @returns {Promise<string[]>} An array of layer names in order from base to top
+ * @throws {Error} If the specified layer cannot be found in the database
+ * @example
+ * const layers = await resolveLayer('my-app');
+ * // Returns: ['debian', 'base-runtime', 'my-app']
+ */
 export async function resolveLayer(name: string): Promise<string[]> {
     console.log(chalk.blue(`🔍 Resolving layers like we're solving a puzzle for bestie: ${name}`));
     

@@ -1,3 +1,23 @@
+/**
+ * Core logic for Keelan container management
+ *
+ * This module provides the main low-level operations for working with crates (container images)
+ * and ships (running containers) in the Keelan system. It includes functions for mounting
+ * and unmounting overlay filesystems, managing system directories, interacting with the database,
+ * and performing file operations. Most functions are used by higher-level handlers to implement
+ * CLI commands.
+ *
+ * Responsibilities:
+ * - Create and remove directories for containers and images
+ * - Mount and unmount OverlayFS and system directories (e.g., /proc, /dev)
+ * - Bind system drives into container namespaces
+ * - Check mountpoints for status
+ * - Write crate metadata and files to the database
+ * - Remove crates, gzip archives, and ships
+ *
+ * Note: Many operations require elevated privileges (sudo) and are Linux-specific.
+ */
+
 import { execSync } from "child_process";
 import { db } from "../database/db.js";
 import { keelanCrate, keelanFiles } from "../database/schema.js";
@@ -8,12 +28,31 @@ import chalk from "chalk";
 import { PATHS } from "../constants.js";
 load_env.config({ quiet: true });
 
+/**
+ * Creates a directory at the specified path with parent directories if they don't exist.
+ * Uses sudo to ensure proper permissions.
+ * 
+ * @param {string} path - The directory path to create
+ * @throws {Error} If directory creation fails
+ * @example
+ * createDirectory('/var/lib/keelan/crates/myapp');
+ */
 export function createDirectory(path: string): void {
     console.log(chalk.blue(`📁 Bout to create this directory like it's my main character era: ${path}`));
     execSync(`sudo mkdir -p ${path}`);
     console.log(chalk.green(`✅ Directory created and it's giving main character vibes bestie: ${path}`));
 }
 
+/**
+ * Mounts an OverlayFS filesystem at the specified merge path.
+ * 
+ * @param {string} lowerdir - Path to the lower directory (read-only base layer)
+ * @param {string} upperdir - Path to the upper directory (writable layer)
+ * @param {string} workdir - Work directory required by OverlayFS
+ * @param {string} merge_path - Path where the overlay will be mounted
+ * @throws {Error} If mount operation fails
+ * @requires sudo - Requires root privileges to execute mount command
+ */
 export function mountOverlayDirectory(lowerdir: string, upperdir: string, workdir: string, merge_path: string): void {
     console.log(chalk.blue(`🔧 Time to mount this overlay like we're building the ultimate tech stack:
     Lower: ${lowerdir}
@@ -24,12 +63,27 @@ export function mountOverlayDirectory(lowerdir: string, upperdir: string, workdi
     console.log(chalk.green(`✅ Overlay mounted and it's absolutely sending me bestie: ${merge_path}`));
 }
 
+/**
+ * Binds a directory to another mount point using mount --bind.
+ * Typically used to make system directories available in container namespaces.
+ * 
+ * @param {string} path - Source directory path to bind
+ * @param {string} mountpoint - Target mount point
+ * @throws {Error} If bind mount operation fails
+ * @requires sudo - Requires root privileges
+ */
 export function mountBindDrive(path: string, mountpoint: string): void {
     console.log(chalk.blue(`🔗 Binding this drive like we're creating the ultimate connection: ${path} to ${mountpoint}`));
     execSync(`sudo mount --bind ${path} ${mountpoint}`);
     console.log(chalk.green(`✅ Bind drive mounted successfully bestie: ${mountpoint}`));
 }
 
+/**
+ * Checks if a directory is currently mounted.
+ * 
+ * @param {string} mountpoint - Path to check
+ * @returns {boolean} True if the path is a mountpoint, false otherwise
+ */
 export function checkMountpoint(mountpoint: string): boolean {
     console.log(chalk.blue(`🔍 Checking if this mountpoint is giving what it's supposed to give: ${mountpoint}`));
     try {
@@ -42,6 +96,16 @@ export function checkMountpoint(mountpoint: string): boolean {
     }
 }
 
+/**
+ * Mounts a container crate with proper overlay filesystem setup.
+ * Also mounts essential system directories (/proc, /dev, /sys) into the container.
+ * 
+ * @param {string} lowerdir - Base layer directory (read-only)
+ * @param {string} upperdir - Upper layer directory (writable changes)
+ * @param {string} workdir - Work directory for OverlayFS
+ * @param {string} merge_path - Path where the container filesystem will be mounted
+ * @throws {Error} If any mount operation fails
+ */
 export function mountCrate(lowerdir: string, upperdir: string, workdir: string, merge_path: string): void {
 
     if(checkMountpoint(merge_path)) {
@@ -69,6 +133,12 @@ export function mountCrate(lowerdir: string, upperdir: string, workdir: string, 
     console.log(chalk.green('✅ System directories mounted and they\'re serving functionality realness'));
 }
 
+/**
+ * Unmounts a container crate and cleans up mounted directories.
+ * Safely handles cases where some mounts might not exist.
+ * 
+ * @param {string} merge_path - Path where the container is mounted
+ */
 export function unmountCrate(merge_path: string): void {
     
     if (!checkMountpoint(merge_path)) {
@@ -100,6 +170,13 @@ export function unmountCrate(merge_path: string): void {
     console.log(chalk.green('✅ System directories unmounted - cleanup complete and we\'re feeling fresh'));
 }
 
+/**
+ * Writes crate file content to the database with a checksum.
+ * 
+ * @param {string} name - Name of the crate file
+ * @param {string} content - File content to store
+ * @returns {Promise<Array>} Database query result
+ */
 export async function writeCrateFile(name: string, content: string) {
     return db.
         insert(keelanFiles)
@@ -110,6 +187,17 @@ export async function writeCrateFile(name: string, content: string) {
         }).returning();
 }
 
+/**
+ * Creates a new crate entry in the database.
+ * 
+ * @param {string} name - Name of the crate
+ * @param {string} image - Base image name
+ * @param {string} layer - Layer identifier
+ * @param {number} sizeBytes - Size of the crate in bytes
+ * @param {string} digest - Content-addressable digest of the crate
+ * @param {number} keelanFileId - Reference to the Keelan file in the database
+ * @returns {Promise<any>} Database query result
+ */
 export async function writeCrate(name: string, image: string, layer: string, sizeBytes: number, digest: string, keelanFileId: number): Promise<any> {
     return db
     .insert(keelanCrate)
@@ -125,6 +213,12 @@ export async function writeCrate(name: string, image: string, layer: string, siz
 }
 
 
+/**
+ * Checks if a crate with the given name already exists.
+ * 
+ * @param {string} name - Crate name to check
+ * @returns {Promise<boolean>} True if a crate with the name exists, false otherwise
+ */
 export async function checkName(name: string): Promise<boolean> {
     const result = await db.select().from(keelanFiles).where(
         eq(keelanFiles.name, name)
@@ -132,6 +226,14 @@ export async function checkName(name: string): Promise<boolean> {
     return result.length > 0;
 }
 
+/**
+ * Removes a crate and its associated directories.
+ * 
+ * @param {string} name - Name of the crate to remove
+ * @param {Object} [options] - Removal options
+ * @param {boolean} [options.force=false] - If true, ignores errors during removal
+ * @throws {Error} If removal fails and force is false
+ */
 export async function removeCrate(name: string, options: { force?: boolean } = {}): Promise<void> {
     try {
 
@@ -163,6 +265,14 @@ export async function removeCrate(name: string, options: { force?: boolean } = {
     }
 }
 
+/**
+ * Removes a gzipped crate archive.
+ * 
+ * @param {string} name - Name of the gzipped crate to remove
+ * @param {Object} [options] - Removal options
+ * @param {boolean} [options.force=false] - If true, ignores errors during removal
+ * @throws {Error} If removal fails and force is false
+ */
 export async function removeGzipCrate(name: string, options: { force?: boolean } = {}): Promise<void> {
     try {
 
@@ -188,6 +298,15 @@ export async function removeGzipCrate(name: string, options: { force?: boolean }
     }
 }
 
+/**
+ * Removes a ship (running container) and cleans up its resources.
+ * 
+ * @param {string} shipID - ID of the ship to remove
+ * @param {Object} [options] - Removal options
+ * @param {boolean} [options.force=false] - If true, ignores errors during removal
+ * @param {boolean} [options.recursive=false] - If true, recursively removes dependent resources
+ * @throws {Error} If removal fails and force is false
+ */
 export async function removeShip(shipID: string, options: { force?: boolean; recursive?: boolean } = {}): Promise<void> {
     try {
         // Remove the directory of the image

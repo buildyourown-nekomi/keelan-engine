@@ -12,6 +12,19 @@ const pipelineAsync = promisify(pipeline);
 
 
 
+/**
+ * Compresses a directory into a .tar.gz archive.
+ * 
+ * This function creates a gzipped tarball of the specified directory,
+ * excluding common package manager caches to reduce size.
+ * 
+ * @param {string} sourceDirectory - The directory containing the files to compress
+ * @param {string} dist - The directory within sourceDirectory to compress
+ * @param {string} outputTarGzFile - The output .tar.gz file path
+ * @throws {Error} If the compression process fails
+ * @example
+ * await compress('/path/to/source', 'dist', 'output.tar.gz');
+ */
 export async function compress(sourceDirectory: string, dist: string, outputTarGzFile: string) {
     const cmd = `tar --exclude='*/var/lib/apt/lists/*' -czf ${outputTarGzFile} -C ${sourceDirectory} ${dist}`;
     console.log(chalk.blue(`📦 About to compress this crate like it's going on a diet: ${sourceDirectory}`));
@@ -67,6 +80,13 @@ export async function getFileDigest(filePath: string): Promise<{ digest: string,
 
 /**
  * Extracts a .tar.gz file to a specified destination directory.
+ * 
+ * @param {string} sourceTarGzFile - Path to the .tar.gz file to extract
+ * @param {string} destinationDirectory - Directory where files will be extracted
+ * @returns {Promise<boolean>} Resolves to true on successful extraction
+ * @throws {Error} If extraction fails or the source file is invalid
+ * @example
+ * await extractTarGz('archive.tar.gz', './extracted');
  */
 // export async function extractTarGz(sourceTarGzFile: string, destinationDirectory: string) {
 //     console.log(chalk.blue(`📂 Extracting ${sourceTarGzFile} to ${destinationDirectory}`));

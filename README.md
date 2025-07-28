@@ -120,8 +120,15 @@ It feels like Docker, but runs like native.
 
 ## 📖 Documentation
 
-- [docs/](docs/)
-- [examples/](examples/)
+### 📚 Complete Guides
+- **[🚀 Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
+- **[📋 Complete Documentation](DOCUMENTATION.md)** - Comprehensive project guide
+- **[🔧 API Reference](API_REFERENCE.md)** - Technical API documentation
+- **[⚙️ Daemon System](DAEMON.md)** - Background monitoring guide
+
+### 📁 Additional Resources
+- [examples/](examples/) - Example applications and configurations
+- [docs/](docs/) - Additional documentation files
 
 ---
 

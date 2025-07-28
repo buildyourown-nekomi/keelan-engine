@@ -1,3 +1,31 @@
+/**
+ * Main CLI entry point for Keelan
+ *
+ * This file sets up the command-line interface (CLI) for the Keelan project,
+ * a container/virtualization management tool. It uses yargs to define commands
+ * for managing "ships" (running containers), "crates" (container images),
+ * configuration, building, deploying, and controlling the background daemon.
+ *
+ * Key Features:
+ * - Command parsing and dispatch to handler modules
+ * - Environment variable loading
+ * - Modular handler imports for each major command
+ *
+ * Commands:
+ *   - ship: Manage running containers (deploy, start, stop, restart, remove, list)
+ *   - crate: Manage container images (build, remove, list)
+ *   - config: Configure project settings
+ *   - build: Build project crates
+ *   - deploy: Deploy ships
+ *   - daemon: Control the background monitoring daemon
+ *   - init: Initialize a new project
+ *
+ * Usage:
+ *   keelan <command> [options]
+ *
+ * See individual handler files for detailed logic for each command.
+ */
+
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import fs from 'fs-extra';
