@@ -33,15 +33,27 @@ import chalk from 'chalk';
 import load_env from 'dotenv';
 load_env.config({ quiet: true });
 
-// Import handler functions from their respective modules
-import { buildHandler } from './handlers/build.js';
-import { deployHandler } from './handlers/deploy.js';
-import { configHandler } from './handlers/config.js';
-import { removeCrateHandler, removeShipHandler } from './handlers/remove.js';
-import { daemonHandler } from './handlers/daemon.js';
-import { startShipHandler, stopShipHandler, restartShipHandler, listShipsHandler } from './handlers/ship.js';
-import { listCratesHandler } from './handlers/crate.js';
-import { monitorAllShips } from './daemon/monitor-daemon.js';
+// Lazy load handlers for better startup performance
+const handlers = {
+  build: () => import('./handlers/build.js').then(m => m.buildHandler),
+  deploy: () => import('./handlers/deploy.js').then(m => m.deployHandler),
+  config: () => import('./handlers/config.js').then(m => m.configHandler),
+  remove: {
+    crate: () => import('./handlers/remove.js').then(m => m.removeCrateHandler),
+    ship: () => import('./handlers/remove.js').then(m => m.removeShipHandler)
+  },
+  daemon: () => import('./handlers/daemon.js').then(m => m.daemonHandler),
+  ship: {
+    start: () => import('./handlers/ship.js').then(m => m.startShipHandler),
+    stop: () => import('./handlers/ship.js').then(m => m.stopShipHandler),
+    restart: () => import('./handlers/ship.js').then(m => m.restartShipHandler),
+    list: () => import('./handlers/ship.js').then(m => m.listShipsHandler)
+  },
+  crate: {
+    list: () => import('./handlers/crate.js').then(m => m.listCratesHandler)
+  },
+  monitor: () => import('./daemon/monitor-daemon.js').then(m => m.monitorAllShips)
+};
 
 // CLI setup
 const argv = yargs(hideBin(process.argv))
@@ -88,44 +100,50 @@ const argv = yargs(hideBin(process.argv))
       switch (action) {
         case 'deploy':
           if (!name) {
-            console.error(chalk.red('❌ Ship name is required bestie - can\'t deploy without knowing what we\'re working with fr'));
+            console.error(chalk.red('❌ Ship name is required'));
             process.exit(1);
           }
+          const deployHandler = await handlers.deploy();
           await deployHandler({ name, env });
           break;
         case 'start':
           if (!name) {
-            console.error(chalk.red('❌ Ship name is required to start - bestie, we need to know which ship to wake up fr'));
+            console.error(chalk.red('❌ Ship name is required'));
             process.exit(1);
           }
+          const startShipHandler = await handlers.ship.start();
           await startShipHandler({ name, env });
           break;
         case 'stop':
           if (!name) {
-            console.error(chalk.red('❌ Ship name is required to stop - can\'t just stop everything bestie, no cap'));
+            console.error(chalk.red('❌ Ship name is required'));
             process.exit(1);
           }
+          const stopShipHandler = await handlers.ship.stop();
           await stopShipHandler({ name, force });
           break;
         case 'restart':
           if (!name) {
-            console.error(chalk.red('❌ Ship name is required for restart - fam, which ship needs a fresh start bestie?'));
+            console.error(chalk.red('❌ Ship name is required'));
             process.exit(1);
           }
+          const restartShipHandler = await handlers.ship.restart();
           await restartShipHandler({ name, env });
           break;
         case 'remove':
           if (!name) {
-            console.error(chalk.red('❌ Ship name is required for remove - bestie, we need to know what\'s getting yeeted fr'));
+            console.error(chalk.red('❌ Ship name is required'));
             process.exit(1);
           }
+          const removeShipHandler = await handlers.remove.ship();
           await removeShipHandler({ name, force, recursive });
           break;
         case 'list':
+          const listShipsHandler = await handlers.ship.list();
           await listShipsHandler();
           break;
         default:
-          console.error(chalk.red(`❌ That ship action doesn\'t exist bestie, no cap: ${action}`));
+          console.error(chalk.red(`❌ Invalid ship action: ${action}`));
           process.exit(1);
       }
     }
@@ -158,7 +176,10 @@ const argv = yargs(hideBin(process.argv))
           demandOption: true
         });
     },
-    (argv) => buildHandler(argv as any)
+    async (argv) => {
+      const buildHandler = await handlers.build();
+      await buildHandler(argv as any);
+    }
   )
   .command(
     'config [key] [value]',
@@ -185,7 +206,10 @@ const argv = yargs(hideBin(process.argv))
           default: false
         });
     },
-    (argv) => configHandler(argv as any)
+    async (argv) => {
+      const configHandler = await handlers.config();
+      await configHandler(argv as any);
+    }
   )
   .command(
     'crate <action> [name]',
@@ -214,17 +238,19 @@ const argv = yargs(hideBin(process.argv))
       
       switch (action) {
         case 'list':
+          const listCratesHandler = await handlers.crate.list();
           await listCratesHandler();
           break;
         case 'remove':
           if (!name) {
-            console.error(chalk.red('❌ Crate name is required for remove - which crate are we deleting bestie fr?'));
+            console.error(chalk.red('❌ Crate name is required'));
             process.exit(1);
           }
+          const removeCrateHandler = await handlers.remove.crate();
           await removeCrateHandler({ name, force, recursive: false });
           break;
         default:
-          console.error(chalk.red(`❌ That crate action doesn\'t exist and it\'s giving me secondhand embarrassment bestie: ${action}`));
+          console.error(chalk.red(`❌ Invalid crate action: ${action}`));
           process.exit(1);
       }
     }
@@ -283,6 +309,7 @@ const argv = yargs(hideBin(process.argv))
         console.log('Press Ctrl+C when you\'re done being nosy - no judgment');
         
         // Run initial check
+        const monitorAllShips = await handlers.monitor();
         await monitorAllShips();
         
         // Set up interval for continuous monitoring
@@ -298,9 +325,10 @@ const argv = yargs(hideBin(process.argv))
         });
       } else {
         // Run one-time check
-        console.log('🔍 Time to check on all our ships like a concerned parent bestie...');
+        console.log('🔍 Checking on all ships...');
+        const listShipsHandler = await handlers.ship.list();
         await listShipsHandler();
-        console.log('✅ Monitoring check completed and everyone\'s accounted for bestie - no cap');
+        console.log('✅ Monitoring check completed');
       }
     }
   )
@@ -339,6 +367,7 @@ const argv = yargs(hideBin(process.argv))
         });
     },
     async (argv) => {
+      const daemonHandler = await handlers.daemon();
       await daemonHandler({
         action: argv.action as 'start' | 'stop' | 'status' | 'restart',
         interval: argv.interval,
