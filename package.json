@@ -9,7 +9,10 @@
     "dev": "tsx src/index.ts",
     "migrate": "tsx src/database/migrate.ts",
     "reset": "tsx src/database/migrate.ts reset",
-    "postbuild": "sed -i '1s/^/#\\!\\/usr\\/bin\\/env node\\n/' dist/index.js"
+    "postbuild": "sed -i '1s/^/#\\!\\/usr\\/bin\\/env node\\n/' dist/index.js",
+    "analyze": "node scripts/analyze-bundle.js",
+    "build:analyze": "npm run build && npm run analyze",
+    "optimize": "npm run build && npm run analyze"
   },
   "bin": {
     "keelan": "./dist/index.js"

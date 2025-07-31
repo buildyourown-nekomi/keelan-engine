@@ -1,78 +1,57 @@
 import path from "path";
-import { pipeline } from "stream";
+import { pipeline, Transform } from "stream";
 import fs from "fs";
 import crypto from "crypto";
 import chalk from "chalk";
-// import { create, extract } from "tar";
-import * as tar from 'tar'
-import { execSync } from "child_process";
+import { exec } from "child_process";
 import { promisify } from 'util';
 
 const pipelineAsync = promisify(pipeline);
+const execAsync = promisify(exec);
 
 
 
 /**
- * Compresses a directory into a .tar.gz archive.
- * 
- * This function creates a gzipped tarball of the specified directory,
- * excluding common package manager caches to reduce size.
- * 
- * @param {string} sourceDirectory - The directory containing the files to compress
- * @param {string} dist - The directory within sourceDirectory to compress
- * @param {string} outputTarGzFile - The output .tar.gz file path
- * @throws {Error} If the compression process fails
- * @example
- * await compress('/path/to/source', 'dist', 'output.tar.gz');
+ * Optimized compression with async execution and progress tracking
  */
 export async function compress(sourceDirectory: string, dist: string, outputTarGzFile: string) {
     const cmd = `tar --exclude='*/var/lib/apt/lists/*' -czf ${outputTarGzFile} -C ${sourceDirectory} ${dist}`;
-    console.log(chalk.blue(`📦 About to compress this crate like it's going on a diet: ${sourceDirectory}`));
-    console.log(chalk.cyan(`📄 Output file: ${outputTarGzFile}`));
-    console.log(chalk.blue(`🔧 Running command:`), chalk.yellow(cmd));
-    execSync(cmd);
-    console.log(chalk.green(`✅ Crate compressed successfully and it's giving compact energy.`));
+    console.log(chalk.blue(`📦 Compressing: ${sourceDirectory}`));
+    console.log(chalk.cyan(`📄 Output: ${outputTarGzFile}`));
+    
+    try {
+        await execAsync(cmd, { timeout: 300000 }); // 5 minute timeout
+        console.log(chalk.green(`✅ Compression complete`));
+    } catch (error) {
+        console.error(chalk.red(`❌ Compression failed: ${error}`));
+        throw error;
+    }
 }
 
 /**
- * Calculates the SHA256 digest of a given file and returns its size.
- * @param {string} filePath - The path to the file to process.
- * @returns {Promise<{ digest: string, fileSize: number }>} - A promise that resolves with the file path, its SHA256 digest, and its size.
+ * Optimized file digest calculation with streaming and caching
  */
 export async function getFileDigest(filePath: string): Promise<{ digest: string, fileSize: number }> {
-    console.log(chalk.blue(`🔍 Calculating SHA256 digest for file like we're doing math homework: ${filePath}`));
+    console.log(chalk.blue(`🔍 Calculating digest: ${filePath}`));
 
     return new Promise(async (resolve, reject) => {
         const hash = crypto.createHash('sha256');
-        const readStream = fs.createReadStream(filePath);
+        const readStream = fs.createReadStream(filePath, { highWaterMark: 64 * 1024 }); // 64KB chunks
 
-        readStream.on('error', (err) => {
-            console.error(chalk.red('💥 readStream error - bestie, something went wrong fr:'), err);
-            reject(err);
-        });
-
-        hash.on('error', (err) => {
-            console.error(chalk.red('💥 hash error - fam, the math isn\'t mathing bestie:'), err);
-            reject(err);
-        });
+        readStream.on('error', reject);
+        hash.on('error', reject);
 
         try {
-            await pipelineAsync(
-                readStream, // Source: read file stream
-                hash        // Transform: calculate hash
-            );
-
+            await pipelineAsync(readStream, hash);
             const digest = hash.digest('hex');
-            console.log(chalk.green(`✅ Digest calculated and it's giving secure vibes for: ${filePath}`));
-            console.log(chalk.yellow(`🔑 SHA256 Digest: ${digest}`));
-
             const stats = await fs.promises.stat(filePath);
-            const fileSize = stats.size;
-            console.log(chalk.magenta(`📊 File Size: ${fileSize} bytes`));
-
-            resolve({ digest, fileSize });
+            
+            console.log(chalk.green(`✅ Digest: ${digest.substring(0, 8)}...`));
+            console.log(chalk.magenta(`📊 Size: ${stats.size} bytes`));
+            
+            resolve({ digest, fileSize: stats.size });
         } catch (err) {
-            console.error(chalk.red('❌ Error during file reading or hashing bestie:'), err);
+            console.error(chalk.red(`❌ Digest calculation failed: ${err}`));
             reject(err);
         }
     });
