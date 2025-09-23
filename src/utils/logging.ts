@@ -20,6 +20,8 @@ export class TailLog {
     private logBuffer: string[] = [];
     private isInitialized = false;
     private static instance: TailLog;
+    private errorLog: string[] = [];
+    private maxErrorLogSize = 100;
 
     constructor() {
         if (TailLog.instance) {
@@ -39,6 +41,15 @@ export class TailLog {
      * Optimized error logging with cached colors
      */
     error(message: string) {
+        const timestamp = new Date().toISOString();
+        const errorLogEntry = `[${timestamp}] ERROR: ${message}`;
+        this.errorLog.push(errorLogEntry);
+        
+        // Keep only the most recent errors
+        if (this.errorLog.length > this.maxErrorLogSize) {
+            this.errorLog.shift();
+        }
+        
         console.log(colorCache.red(`❌ [ERROR] ${message}`));
     }
 
@@ -92,5 +103,36 @@ export class TailLog {
         // Batch output operations
         const output = this.logBuffer.join('\n') + '\n'.repeat(Math.max(0, MAX_LINES - this.logBuffer.length));
         process.stdout.write(output);
+    }
+    
+    /**
+     * Get recent error logs
+     */
+    getErrorLogs(): string[] {
+        return [...this.errorLog];
+    }
+    
+    /**
+     * Clear error logs
+     */
+    clearErrorLogs(): void {
+        this.errorLog = [];
+    }
+    
+    /**
+     * Get error log count
+     */
+    getErrorLogCount(): number {
+        return this.errorLog.length;
+    }
+    
+    /**
+     * Set maximum error log size
+     */
+    setErrorLogSize(size: number): void {
+        this.maxErrorLogSize = size;
+        if (this.errorLog.length > size) {
+            this.errorLog = this.errorLog.slice(-size);
+        }
     }
 }
